@@ -36,6 +36,9 @@ export default function RootLayout({
               <Link className="hover:text-emerald-700" href="/books">
                 Books
               </Link>
+              <Link className="hover:text-emerald-700" href="/chat">
+                Chat
+              </Link>
               <Link className="hover:text-emerald-700" href="/books/new">
                 Add Book
               </Link>

@@ -15,6 +15,16 @@ export type BookInput = {
   rating: number | null;
 };
 
+export type AIMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type AIChatResponse = {
+  reply: string;
+  updated_history: AIMessage[];
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -59,5 +69,28 @@ export function updateBook(id: string, book: Partial<BookInput>) {
 export async function deleteBook(id: string) {
   await request<{ message: string }>(`/books/${id}`, {
     method: "DELETE",
+  });
+}
+
+export function chatWithAI(message: string, conversationHistory: AIMessage[]) {
+  return request<AIChatResponse>("/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({
+      message,
+      conversation_history: conversationHistory,
+    }),
+  });
+}
+
+export function getBookRecommendations(
+  message: string,
+  conversationHistory: AIMessage[],
+) {
+  return request<AIChatResponse>("/ai/recommend", {
+    method: "POST",
+    body: JSON.stringify({
+      message,
+      conversation_history: conversationHistory,
+    }),
   });
 }
