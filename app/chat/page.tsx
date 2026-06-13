@@ -2,27 +2,35 @@
 
 import { FormEvent, useState } from "react";
 import {
+  AgentStep,
   AIMessage,
   chatWithAI,
   getBookRecommendations,
+  runBookAgent,
 } from "@/lib/api";
 
-type ChatMode = "chat" | "recommend";
+type ChatMode = "chat" | "recommend" | "agent";
+type ChatMessage = AIMessage & {
+  agentSteps?: AgentStep[];
+};
 
 const modes: { value: ChatMode; label: string }[] = [
   { value: "chat", label: "General Chat" },
   { value: "recommend", label: "Book Recommendations" },
+  { value: "agent", label: "Agent" },
 ];
 
 const starterText = {
   chat: "Ask about a book, author, genre, or reading habit.",
   recommend: "Based on my current reading history, what should I read next?",
+  agent:
+    "Try a multi-step task, like updating a book and then checking your reading list.",
 };
 
 export default function ChatPage() {
   const [mode, setMode] = useState<ChatMode>("chat");
   const [message, setMessage] = useState("");
-  const [history, setHistory] = useState<AIMessage[]>([]);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +49,7 @@ export default function ChatPage() {
       return;
     }
 
-    const nextHistory: AIMessage[] = [
+    const nextHistory: ChatMessage[] = [
       ...history,
       { role: "user", content: trimmedMessage },
     ];
@@ -52,12 +60,24 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response =
-        mode === "chat"
-          ? await chatWithAI(trimmedMessage, history)
-          : await getBookRecommendations(trimmedMessage, history);
+      if (mode === "agent") {
+        const response = await runBookAgent(trimmedMessage);
+        setHistory([
+          ...nextHistory,
+          {
+            role: "assistant",
+            content: response.response,
+            agentSteps: response.agent_steps,
+          },
+        ]);
+      } else {
+        const response =
+          mode === "chat"
+            ? await chatWithAI(trimmedMessage, history)
+            : await getBookRecommendations(trimmedMessage, history);
 
-      setHistory(response.updated_history);
+        setHistory(response.updated_history);
+      }
     } catch (chatError) {
       setHistory(nextHistory);
       setError(
@@ -126,6 +146,42 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
+
+          {history.map((historyMessage, index) =>
+            historyMessage.role === "assistant" && historyMessage.agentSteps ? (
+              <div key={`steps-${index}`} className="flex justify-start">
+                <div className="w-full max-w-[82%] rounded-md border border-stone-200 bg-stone-50 p-3">
+                  <details>
+                    <summary className="cursor-pointer text-sm font-semibold text-stone-800">
+                      Agent steps ({historyMessage.agentSteps.length})
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {historyMessage.agentSteps.map((step, stepIndex) => (
+                        <details
+                          key={`${step.tool}-${stepIndex}`}
+                          className="rounded-md border border-stone-200 bg-white p-3"
+                        >
+                          <summary className="cursor-pointer text-sm font-semibold text-stone-800">
+                            Step {stepIndex + 1}: {step.tool}
+                          </summary>
+                          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded bg-stone-100 p-3 text-xs leading-6 text-stone-800">
+                            {JSON.stringify(
+                              {
+                                input: step.input,
+                                result: step.result,
+                              },
+                              null,
+                              2,
+                            )}
+                          </pre>
+                        </details>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              </div>
+            ) : null,
+          )}
 
           {isLoading ? (
             <div className="flex justify-start">

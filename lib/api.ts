@@ -25,6 +25,17 @@ export type AIChatResponse = {
   updated_history: AIMessage[];
 };
 
+export type AgentStep = {
+  tool: string;
+  input: Record<string, unknown>;
+  result: Record<string, unknown>;
+};
+
+export type AIAgentResponse = {
+  response: string;
+  agent_steps: AgentStep[];
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -92,5 +103,12 @@ export function getBookRecommendations(
       message,
       conversation_history: conversationHistory,
     }),
+  });
+}
+
+export function runBookAgent(message: string) {
+  return request<AIAgentResponse>("/ai/agent", {
+    method: "POST",
+    body: JSON.stringify({ message }),
   });
 }
